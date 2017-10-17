@@ -2,7 +2,8 @@
 
 import rospy
 from geometry_msgs.msg import PoseStamped
-from styx_msgs.msg import Lane, Waypoint
+from styx_msgs.msg import TrafficLightArray, TrafficLight, Lane, Waypoint
+from std_msgs.msg import Int32
 
 import math
 
@@ -23,30 +24,50 @@ TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 
 LOOKAHEAD_WPS = 200 # Number of waypoints we will publish. You can change this number
 
-
 class WaypointUpdater(object):
     def __init__(self):
         rospy.init_node('waypoint_updater')
 
-        rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
-        rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
+        # Subscribers for /current_pose and /vase_waypoints:
+        self.current_pose_sub = rospy.Subscriber('/current_pose', PoseStamped, self.pose_cb)
+        self.base_waypoints_sub = rospy.Subscriber('/base_waypoints', Lane, self.waypoints_cb)
 
-        # TODO: Add a subscriber for /traffic_waypoint and /obstacle_waypoint below
+        # subscriber for /traffic_waypoint and /obstacle_waypoint:
+        # rospy.Subscriber('/traffic_waypoint', Int32, self.traffic_cb, queue_size=1)
+        # rospy.Subscriber('/obstacle_waypoint', Int32, self.obstacle_cb, queue_size=1)
 
-
+        # Publisher in final_waypoints
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
-        # TODO: Add other member variables you need below
+        # Member variables
+        self.sampling_rate = 10.
+        self.car_pose = None
+        self.car_orientation = None
+        self.waypoints = []
+        self.closest_waypoint = None
+        self.final_waypoints = []
+        self.process_info()
 
         rospy.spin()
 
     def pose_cb(self, msg):
-        # TODO: Implement
-        pass
+        self.car_pose = msg.pose
 
-    def waypoints_cb(self, waypoints):
-        # TODO: Implement
-        pass
+    def waypoints_cb(self, msg):
+        self.waypoints = [waypoint for waypoint in msg.waypoints]
+        self.base_waypoints_sub.unregister()
+
+        # we need to do this action just one time
+        rospy.loginfo("Unregistered from /base_waypoints topic")
+
+    def get_final_waypoints(self, car_pose, waypoints):
+        self.closest_waypoint = self.get_closest_waypoint(car_pose.position, waypoints)
+        final_wyp = []
+        for idx in range(self.closest_waypoint, len(waypoints)):
+            final_wyp.append(waypoints[idx])
+            if len(final_wyp) > LOOKAHEAD_WPS:
+                break
+        return final_wyp
 
     def traffic_cb(self, msg):
         # TODO: Callback for /traffic_waypoint message. Implement
@@ -69,6 +90,28 @@ class WaypointUpdater(object):
             dist += dl(waypoints[wp1].pose.pose.position, waypoints[i].pose.pose.position)
             wp1 = i
         return dist
+
+    def get_closest_waypoint(self, current_position, waypoints):
+        closer_dist = None
+        closer_idx = None
+        dl = lambda a, b: math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2)
+        for idx in range(0, len(waypoints)):
+            dist = dl(current_position, waypoints[idx].pose.pose.position)
+            if closer_dist is None or dist < closer_dist:
+                closer_dist = dist
+                closer_idx = idx
+        return closer_idx
+
+    def process_info(self):
+        rate = rospy.Rate(self.sampling_rate)
+        while not rospy.is_shutdown():
+            if self.waypoints is not None and self.car_pose is not None:
+                self.final_waypoints = self.get_final_waypoints(self.car_pose, self.waypoints)
+                # create msg with the final waypoints:
+                final_waypoints_msg = Lane()
+                final_waypoints_msg.waypoints = list(self.final_waypoints)
+                self.final_waypoints_pub.publish(final_waypoints_msg)
+            rate.sleep()
 
 
 if __name__ == '__main__':
