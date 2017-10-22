@@ -41,7 +41,7 @@ class TLDetector(object):
         self.waypoints = None
         self.camera_image = None
         self.lights = []
-        self.min_distance = 50  # min distance to look for traffic signals
+        self.min_distance = 25  # min distance to look for traffic signals
 
         self.bridge = CvBridge()
         self.light_classifier = TLClassifier()
@@ -62,7 +62,7 @@ class TLDetector(object):
         self.sub_waypoints.unregister()
 
         # we need to do this action just one time
-        rospy.loginfo("Unregistered from /base_waypoints topic")
+        #rospy.loginfo("Unregistered from /base_waypoints topic")
 
     def traffic_cb(self, msg):
         self.lights = msg.lights
@@ -171,7 +171,7 @@ class TLDetector(object):
         # List of positions that correspond to the line to stop in front of for a given intersection
         stop_line_positions = self.config['stop_line_positions']
 
-        if self.car_pose is not None:
+        if self.car_pose is not None and self.waypoints is not None:
             # Get stop light position index that is closer to the car pose:
             closest_stoplight_idx = -1
             min_dist = -1
@@ -184,7 +184,6 @@ class TLDetector(object):
 
             # Get the associated waypoint for the closest stop light:
             closest_light = stop_line_positions[closest_stoplight_idx]
-            #light_wp = self.get_closest_waypoint(AttrDict({'x': closest_light[0], 'y': closest_light[1]}))
             light_wp = self.get_closest_waypoint_to_light(closest_light)
 
             # Check if the way point is on front of the car at a reasonable distance:
@@ -192,8 +191,12 @@ class TLDetector(object):
             light_wp_x = self.waypoints[light_wp].pose.pose.position.x
             if car_x < light_wp_x and (light_wp_x - car_x) < self.min_distance:
                 light = self.lights[closest_stoplight_idx]
-                state = self.get_light_state(light)
-                rospy.loginfo("Light state at (%s) meters ahead is (%s)", min_dist, light.state)
+
+                # uncomment when classifier is up and running!:
+                # state = self.get_light_state(light)
+                state = light.state
+
+                # rospy.loginfo("Light state at (%s) meters ahead is (%s)", min_dist, light.state)
                 return light_wp, state
 
         # self.waypoints = None
