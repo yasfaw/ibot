@@ -23,6 +23,8 @@ TODO (for Yousuf and Aaron): Stopline location for each traffic light.
 '''
 
 LOOKAHEAD_WPS = 50  # Number of waypoints we will publish. You can change this number
+ONE_MPH = 0.44704
+MAX_DECEL = 1.0
 
 class WaypointUpdater(object):
     def __init__(self):
@@ -41,13 +43,13 @@ class WaypointUpdater(object):
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
         # Member variables
-        self.sampling_rate = 10.
+        self.sampling_rate = 2 #10.
         self.car_pose = None
         self.car_orientation = None
         self.waypoints = []
         self.closest_waypoint = None
         self.redlight_wp = -1
-        self.break_manouver = False
+        self.max_speed = 10 * ONE_MPH
 
         # run!
         self.process_info()
@@ -65,52 +67,46 @@ class WaypointUpdater(object):
         rospy.loginfo("Unregistered from /base_waypoints topic")
 
     def get_final_waypoints(self, car_pose, waypoints, red_light_wp):
+        dl = lambda a, b: math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2)
         self.closest_waypoint = self.get_closest_waypoint(car_pose.position, waypoints)
 
         # final waypoinst is a Lane() object
         final_wyp = Lane()
 
         for idx in range(self.closest_waypoint, len(waypoints)):
-            final_wyp.waypoints.append(waypoints[idx])
-            if len(final_wyp.waypoints) > LOOKAHEAD_WPS or idx == red_light_wp:
-                break
-        # if red_light_wp != -1 and not self.break_manouver:
-        #     # final_wyp.waypoints = self.adjust_speed_car(final_wyp.waypoints)
-        #     rospy.loginfo("Breaking Car!")
-        #     self.break_manouver = True
-		#
-        # if self.break_manouver and red_light_wp == -1:
-        #     self.break_manouver = False
 
-        # for idx in range(len(final_wyp.waypoints)):
-        #     print(waypoints[self.closest_waypoint + idx].twist.twist.linear.x, final_wyp.waypoints[idx].twist.twist.linear.x)
-        # print("******************")
+            # adjust speed if waypoint
+            # if red_light_wp != -1:
+            #     if idx < red_light_wp:
+            #         dist = dl(waypoints[idx].pose.pose.position, waypoints[red_light_wp-1].pose.pose.position)
+            #         vel = math.sqrt(2 * MAX_DECEL * dist)
+            #         if vel < 1.:
+            #             vel = 0.
+            #         waypoints[idx].twist.twist.linear.x = vel
+            #         print(waypoints[idx].twist.twist.linear.x, vel, red_light_wp, idx)
+            #     else:
+            #         waypoints[idx].twist.twist.linear.x = 0.
+            # else:
+            #     waypoints[idx].twist.twist.linear.x = self.max_speed
+
+            final_wyp.waypoints.append(waypoints[idx])
+            if len(final_wyp.waypoints) > LOOKAHEAD_WPS:
+                break
         return final_wyp
 
-    def adjust_speed_car(self, waypoints):
-        dl = lambda a, b: math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2)
-        last_waypoint = waypoints[-1]
-        current_vel = waypoints[0].twist.twist.linear.x
-        if current_vel < 0.1:
-            return waypoints
-        max_distance = dl(waypoints[0].pose.pose.position, last_waypoint.pose.pose.position)
-
-        # get final waypoint and assing a speed of 0:
-        last_waypoint.twist.twist.linear.x = 0.
-
-        for i, wp in enumerate(waypoints[1:-1]):
-            dist = dl(wp.pose.pose.position, last_waypoint.pose.pose.position)
-            vel = current_vel - math.exp(2. / (dist - max_distance)) * current_vel
+    def decelerate(self, waypoints):
+        last = waypoints[-1]
+        last.twist.twist.linear.x = 0.
+        for wp in waypoints[:-1][::-1]:
+            dist = self.distance(wp.pose.pose.position, last.pose.pose.position)
+            vel = math.sqrt(2 * MAX_DECEL * dist)
             if vel < 1.:
                 vel = 0.
-            wp.twist.twist.linear.x = vel
-
+            wp.twist.twist.linear.x = min(vel, wp.twist.twist.linear.x)
         return waypoints
-
 
     def traffic_cb(self, msg):
         # Callback for /traffic_waypoint message.
-        # print("Message: ", msg.data)
         self.redlight_wp = msg.data
 
     def obstacle_cb(self, msg):

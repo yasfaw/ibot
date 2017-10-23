@@ -48,6 +48,8 @@ class DBWNode(object):
         self.goal_yaw_rate = None
         self.current_linear = None
         self.dbw_enabled = True
+        self.dt = None
+        self.prev_time = rospy.rostime.get_time()
 
         # Subscribe to all the topics needed
         rospy.Subscriber('/twist_cmd', TwistStamped, self.twist_cmd_cb)
@@ -68,16 +70,18 @@ class DBWNode(object):
         self.dbw_enabled = msg.data
 
     def loop(self):
-        rate = rospy.Rate(20)  # 50Hz
+        rate = rospy.Rate(5)  # 50Hz
         while not rospy.is_shutdown():
+            self.dt = rospy.rostime.get_time() - self.prev_time
+            self.prev_time = rospy.rostime.get_time()
             if self.goal_linear is not None and self.current_linear is not None:
 
                 # Get predicted throttle, brake, and steering using `twist_controller`
                 throttle, brake, steering = self.controller.control(self.goal_linear,
                                                                     self.goal_yaw_rate,
                                                                     self.current_linear,
-                                                                    self.dbw_enabled)
-                # print(throttle, brake, steering)
+                                                                    self.dbw_enabled,
+                                                                    self.dt)
                 # Publish PID controls just if autonomous mode is ON:
                 if self.dbw_enabled:
                     self.publish(throttle, brake, steering)
