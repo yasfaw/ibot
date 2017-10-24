@@ -43,7 +43,7 @@ class WaypointUpdater(object):
         self.final_waypoints_pub = rospy.Publisher('final_waypoints', Lane, queue_size=1)
 
         # Member variables
-        self.sampling_rate = 2 #10.
+        self.sampling_rate = 10.
         self.car_pose = None
         self.car_orientation = None
         self.waypoints = []
@@ -76,22 +76,24 @@ class WaypointUpdater(object):
         for idx in range(self.closest_waypoint, len(waypoints)):
 
             # adjust speed if waypoint
-            # if red_light_wp != -1:
-            #     if idx < red_light_wp:
-            #         dist = dl(waypoints[idx].pose.pose.position, waypoints[red_light_wp-1].pose.pose.position)
-            #         vel = math.sqrt(2 * MAX_DECEL * dist)
-            #         if vel < 1.:
-            #             vel = 0.
-            #         waypoints[idx].twist.twist.linear.x = vel
-            #         print(waypoints[idx].twist.twist.linear.x, vel, red_light_wp, idx)
-            #     else:
-            #         waypoints[idx].twist.twist.linear.x = 0.
-            # else:
-            #     waypoints[idx].twist.twist.linear.x = self.max_speed
+            if red_light_wp != -1:
+                if idx <= red_light_wp:
+                    dist = dl(waypoints[idx].pose.pose.position, waypoints[red_light_wp-1].pose.pose.position)
+                    vel = 0.8 * math.sqrt(MAX_DECEL * dist) * ONE_MPH
+
+                    if abs(idx - red_light_wp) < 10:
+                        vel = 0.
+
+                    # print(waypoints[idx].twist.twist.linear.x, vel, red_light_wp, idx, dist)
+                    waypoints[idx].twist.twist.linear.x = vel
+            else:
+                if waypoints[idx].twist.twist.linear.x < 2.:
+                    waypoints[idx].twist.twist.linear.x = self.max_speed
 
             final_wyp.waypoints.append(waypoints[idx])
             if len(final_wyp.waypoints) > LOOKAHEAD_WPS:
                 break
+
         return final_wyp
 
     def decelerate(self, waypoints):

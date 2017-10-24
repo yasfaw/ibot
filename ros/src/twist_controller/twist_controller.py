@@ -55,6 +55,10 @@ class Controller(object):
 		throttle = self.throttle_pid.step(speed_diff, dt)
 		throttle = self.lpf.filt(throttle)  # make it smoother
 
+		# Correct PID fluctuation: don't push throttle when you have to break!
+		if speed_diff < 0 and throttle > 0:
+			throttle *= -1.
+
 		# rules to set break or throttle based on the sign
 		if throttle > 0:
 			brake = 0.
@@ -62,14 +66,14 @@ class Controller(object):
 			# define break in terms of torque:
 			brake = self.total_vehicle_mass * self.wheel_radius * throttle
 
-		# Special case: STOP LINE:
-		if target_speed < 1. and current_velocity < ONE_MPH:
-			brake = self.total_vehicle_mass * self.wheel_radius * self.decel_limit
+		# Case special: Stop Line:
+		if abs(target_speed - current_velocity) < 1. and target_speed < 1.:
 			throttle = 0.
+			brake = self.total_vehicle_mass * self.wheel_radius * self.decel_limit
 
 		# PID steer:
 		steer = self.steer_controller.step(target_angular_speed, dt)
 		steer += self.yaw_controller.get_steering(target_speed, target_angular_speed, current_velocity)
 
-		# rospy.loginfo("Parameters: {0}, {1}, {2}".format(throttle, brake, steer))
+		# rospy.loginfo("Parameters: {0}, {1}, {2}| speed dif: {3}".format(throttle, brake, steer, speed_diff))
 		return throttle, brake, steer
