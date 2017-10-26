@@ -49,7 +49,8 @@ class WaypointUpdater(object):
         self.waypoints = []
         self.closest_waypoint = None
         self.redlight_wp = -1
-        self.max_speed = 10 * ONE_MPH
+        self.max_speed = rospy.get_param('waypoint_loader/velocity')*5/18.
+        self.vel = 0
 
         # run!
         self.process_info()
@@ -67,34 +68,41 @@ class WaypointUpdater(object):
         rospy.loginfo("Unregistered from /base_waypoints topic")
 
     def get_final_waypoints(self, car_pose, waypoints, red_light_wp):
-        dl = lambda a, b: math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2)
+        planned_lane = Lane()
         self.closest_waypoint = self.get_closest_waypoint(car_pose.position, waypoints)
 
-        # final waypoinst is a Lane() object
-        final_wyp = Lane()
+        # work with a range of waypoints that starts at an index of zero
+        for idx in range(self.closest_waypoint, self.closest_waypoint + LOOKAHEAD_WPS):
+            wp_idx = idx % len(waypoints)
+            planned_lane.waypoints.append(waypoints[wp_idx])
 
-        for idx in range(self.closest_waypoint, len(waypoints)):
-
-            # adjust speed if waypoint
+        for idx in range(len(planned_lane.waypoints) -1):
+            # if redlight is detected...
             if red_light_wp != -1:
-                if idx <= red_light_wp:
-                    dist = dl(waypoints[idx].pose.pose.position, waypoints[red_light_wp-1].pose.pose.position)
-                    vel = 0.8 * math.sqrt(MAX_DECEL * dist) * ONE_MPH
+                # if redlight is close...
+                if abs(self.closest_waypoint - red_light_wp) < LOOKAHEAD_WPS:
+                    self.vel = self.max_speed - ((LOOKAHEAD_WPS - abs(red_light_wp - self.closest_waypoint - idx))*(self.max_speed/LOOKAHEAD_WPS))
 
-                    if abs(idx - red_light_wp) < 10:
-                        vel = 0.
-
-                    # print(waypoints[idx].twist.twist.linear.x, vel, red_light_wp, idx, dist)
-                    waypoints[idx].twist.twist.linear.x = vel
+                    # slow down immediately if too close to a red light
+                    if abs(self.closest_waypoint - red_light_wp) < 10:
+                        if idx is 0:
+                            print("Immediate slowdown", "Current waypoint:", self.closest_waypoint, "Waypoints until Red light:", abs(red_light_wp - self.closest_waypoint))
+                        self.vel = 0.
+                    else:
+                        if idx is 0:
+                            print("Regular slowdown", "Current waypoint:", self.closest_waypoint, "Waypoints until Red light:", abs(red_light_wp - self.closest_waypoint))
+                else:
+                    if idx is 0:
+                        print("Redlight detected", "Current waypoint:", self.closest_waypoint, "Waypoints until Red light:", abs(red_light_wp - self.closest_waypoint))
             else:
-                if waypoints[idx].twist.twist.linear.x < 2.:
-                    waypoints[idx].twist.twist.linear.x = self.max_speed
+                # accelerate
+                self.vel = self.max_speed
+                if idx is 0:
+                    print("Current waypoint:", self.closest_waypoint)
 
-            final_wyp.waypoints.append(waypoints[idx])
-            if len(final_wyp.waypoints) > LOOKAHEAD_WPS:
-                break
+            planned_lane.waypoints[idx].twist.twist.linear.x = self.vel
 
-        return final_wyp
+        return planned_lane
 
     def decelerate(self, waypoints):
         last = waypoints[-1]
