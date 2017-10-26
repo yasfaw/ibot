@@ -63,13 +63,13 @@ class Controller(object):
 		if throttle > 0:
 			brake = 0.
 		else:
-			# define break in terms of torque:
-			brake = self.total_vehicle_mass * self.wheel_radius * throttle
+			# define brake in terms of torque:
+			brake = abs(self.total_vehicle_mass * self.wheel_radius * throttle)
 
 		# Case special: Stop Line:
 		if abs(target_speed - current_velocity) < 1. and target_speed < 1.:
 			throttle = 0.
-			brake = self.total_vehicle_mass * self.wheel_radius * self.decel_limit
+			brake = abs(self.total_vehicle_mass * self.wheel_radius * self.decel_limit)
 
 		# PID steer:
 		steer = self.steer_controller.step(target_angular_speed, dt)
