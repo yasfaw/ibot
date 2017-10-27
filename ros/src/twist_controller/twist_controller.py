@@ -37,8 +37,8 @@ class Controller(object):
 											max_lat_accel=self.max_lat_accel,
 											max_steer_angle=self.max_steer_angle)
 
-		self.throttle_pid = PID(kp=0.5, ki=0.1, kd=0.2, mn=self.decel_limit, mx=self.accel_limit)
-		self.steer_controller = PID(5., 0.05, 1., -self.max_steer_angle, self.max_steer_angle)
+		self.throttle_pid = PID(kp=1, ki=0.0, kd=0.5, mn=self.decel_limit, mx=self.accel_limit)
+		self.steer_controller = PID(5., 0.0, 3., -self.max_steer_angle, self.max_steer_angle)
 
 	def control(self, target_speed, target_angular_speed, current_velocity, dbw_enabled, dt):
 
