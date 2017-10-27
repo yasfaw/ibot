@@ -41,7 +41,7 @@ class TLDetector(object):
         self.waypoints = None
         self.camera_image = None
         self.lights = []
-        self.min_distance = 25  # min distance to look for traffic signals
+        self.min_distance = 50  # min distance to look for traffic signals
 
         self.bridge = CvBridge()
         self.light_classifier = TLClassifier()
@@ -192,11 +192,12 @@ class TLDetector(object):
             if car_x < light_wp_x and (light_wp_x - car_x) < self.min_distance:
                 light = self.lights[closest_stoplight_idx]
 
-                # uncomment when classifier is up and running!:
-                # state = self.get_light_state(light)
-                state = light.state
-
-                # rospy.loginfo("Light state at (%s) meters ahead is (%s)", min_dist, light.state)
+                state = self.get_light_state(light)
+                
+                # comment when testing in real car
+                real_state = light.state
+                rospy.loginfo("Predicted light state at (%s) meters ahead is (%s), real state is (%s)", min_dist, state, real_state)
+                
                 return light_wp, state
 
         # self.waypoints = None
