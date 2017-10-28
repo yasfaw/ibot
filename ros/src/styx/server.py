@@ -9,6 +9,9 @@ from flask import Flask, render_template
 from bridge import Bridge
 from conf import conf
 
+count = 0
+skip = 3
+
 ## Uncomment if car not running on Mac
 #eventlet.monkey_patch()
 #sio = socketio.Server(async_mode='eventlet')
@@ -60,7 +63,10 @@ def trafficlights(sid, data):
 
 @sio.on('image')
 def image(sid, data):
-    bridge.publish_camera(data)
+    global count, skip
+    count += 1
+    if count%(skip+1)==0:
+        bridge.publish_camera(data)
 
 if __name__ == '__main__':
 

@@ -158,7 +158,6 @@ class TLClassifier(object):
             return self.dnn_classifier(tl_b_box_image)
         else:
             return self.cv_classifier_3(tl_b_box_image)
-            # return self.cv_classifier_1(image)
 
     def dnn_classifier(self, image):
         """
@@ -258,13 +257,13 @@ class TLClassifier(object):
 
         if red_area - green_area >= 15:
             decision = TrafficLight.RED
-            rospy.loginfo("RED {0} {1}".format(red_area, green_area))
+            # rospy.loginfo("RED {0} {1}".format(red_area, green_area))
         elif green_area - red_area >= 15:
             decision = TrafficLight.GREEN
-            rospy.loginfo("GREEN {0} {1}".format(red_area, green_area))
+            # rospy.loginfo("GREEN {0} {1}".format(red_area, green_area))
         else:
             decision = TrafficLight.UNKNOWN
-            print("UNKNOWN",red_area, green_area)
+            # print("UNKNOWN",red_area, green_area)
 
         # if PRINT_IMAGES == True:
         #     im_name_3 = str(self.light2str[decision])+"_"+str(self.iteration)+".jpg"

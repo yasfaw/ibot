@@ -47,7 +47,6 @@ class TLDetector(object):
 
         self.bridge = CvBridge()
         self.light_classifier = TLClassifier()
-        self.listener = tf.TransformListener()
 
         self.state = TrafficLight.UNKNOWN
         self.last_state = TrafficLight.UNKNOWN
@@ -110,14 +109,6 @@ class TLDetector(object):
             int: index of the closest waypoint in self.waypoints
 
         """
-        # closer_dist = None
-        # closer_idx = None
-        # dl = lambda a, b: math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2)
-        # for idx in range(0, len(self.waypoints)):
-        #     dist = dl(car_pose.position, self.waypoints[idx].pose.pose.position)
-        #     if closer_dist is None or dist < closer_dist:
-        #         closer_dist = dist
-        #         closer_idx = idx
         car_position = np.asarray([self.car_pose.position.x, self.car_pose.position.y])
         dist_squared = np.sum((self.wp_array - car_position)**2, axis=1)
         closer_idx = np.argmin(dist_squared)
@@ -134,14 +125,6 @@ class TLDetector(object):
             int: index of the closest waypoint in self.waypoints
 
         """
-        # closer_dist = None
-        # closer_idx = None
-        # dl = lambda a, b: math.sqrt((a[0] - b.x) ** 2 + (a[1] - b.y) ** 2)
-        # for idx in range(0, len(self.waypoints)):
-        #     dist = dl(light_position, self.waypoints[idx].pose.pose.position)
-        #     if closer_dist is None or dist < closer_dist:
-        #         closer_dist = dist
-        #         closer_idx = idx
 
         dist_squared = np.sum((self.wp_array - light_position)**2, axis=1)
         closer_idx = np.argmin(dist_squared)
@@ -158,10 +141,6 @@ class TLDetector(object):
             int: ID of traffic light color (specified in styx_msgs/TrafficLight)
 
         """
-        if not self.has_image:
-            self.prev_light_loc = None
-            return False
-
         # Here the image is transformed to an OpenCV image Object that could be saved.
         cv_image = self.bridge.imgmsg_to_cv2(self.camera_image, "bgr8")
 
@@ -183,15 +162,6 @@ class TLDetector(object):
         stop_line_positions = self.config['stop_line_positions']
 
         if self.car_pose is not None and self.waypoints is not None:
-            # Get stop light position index that is closer to the car pose:
-            # closest_stoplight_idx = -1
-            # min_dist = -1
-            # dl = lambda a, b: math.sqrt((a[0] - b.x) ** 2 + (a[1] - b.y) ** 2)
-            # for idx, stop in enumerate(stop_line_positions):
-            #     dist = dl(stop, self.car_pose.position)
-            #     if dist < min_dist or min_dist == -1:
-            #         min_dist = dist
-            #         closest_stoplight_idx = idx
 
             car_position = np.asarray([self.car_pose.position.x, self.car_pose.position.y])
             min_dist = np.sum(np.sqrt((stop_line_positions - car_position)**2), axis=1)
@@ -212,8 +182,8 @@ class TLDetector(object):
 
                 # comment when testing in real car
                 real_state = light.state
-                if real_state != state:
-                    rospy.loginfo("Predicted light state at (%s) meters ahead is (%s), real state is (%s), predicted state is (%s)", min_dist, state, real_state, state)
+                # if real_state != state:
+                #     rospy.loginfo("Predicted light state at (%s) meters ahead is (%s), real state is (%s), predicted state is (%s)", min_dist, state, real_state, state)
 
                 return light_wp, state
 
