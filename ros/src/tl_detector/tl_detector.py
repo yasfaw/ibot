@@ -11,9 +11,10 @@ import tf
 import cv2
 import yaml
 import math
+import numpy as np
 
 
-STATE_COUNT_THRESHOLD = 3
+STATE_COUNT_THRESHOLD = 2
 
 class TLDetector(object):
     def __init__(self):
@@ -39,6 +40,7 @@ class TLDetector(object):
 
         self.car_pose = None
         self.waypoints = None
+        self.wp_array = None
         self.camera_image = None
         self.lights = []
         self.min_distance = 50  # min distance to look for traffic signals
@@ -59,6 +61,7 @@ class TLDetector(object):
 
     def waypoints_cb(self, msg):
         self.waypoints = [waypoint for waypoint in msg.waypoints]
+        self.wp_array = np.asarray([(w.pose.pose.position.x, w.pose.pose.position.y) for w in self.waypoints])
         self.sub_waypoints.unregister()
 
         # we need to do this action just one time
@@ -107,14 +110,18 @@ class TLDetector(object):
             int: index of the closest waypoint in self.waypoints
 
         """
-        closer_dist = None
-        closer_idx = None
-        dl = lambda a, b: math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2)
-        for idx in range(0, len(self.waypoints)):
-            dist = dl(car_pose.position, self.waypoints[idx].pose.pose.position)
-            if closer_dist is None or dist < closer_dist:
-                closer_dist = dist
-                closer_idx = idx
+        # closer_dist = None
+        # closer_idx = None
+        # dl = lambda a, b: math.sqrt((a.x - b.x) ** 2 + (a.y - b.y) ** 2 + (a.z - b.z) ** 2)
+        # for idx in range(0, len(self.waypoints)):
+        #     dist = dl(car_pose.position, self.waypoints[idx].pose.pose.position)
+        #     if closer_dist is None or dist < closer_dist:
+        #         closer_dist = dist
+        #         closer_idx = idx
+        car_position = np.asarray([self.car_pose.position.x, self.car_pose.position.y])
+        dist_squared = np.sum((self.wp_array - car_position)**2, axis=1)
+        closer_idx = np.argmin(dist_squared)
+
         return closer_idx
 
     def get_closest_waypoint_to_light(self, light_position):
@@ -127,14 +134,18 @@ class TLDetector(object):
             int: index of the closest waypoint in self.waypoints
 
         """
-        closer_dist = None
-        closer_idx = None
-        dl = lambda a, b: math.sqrt((a[0] - b.x) ** 2 + (a[1] - b.y) ** 2)
-        for idx in range(0, len(self.waypoints)):
-            dist = dl(light_position, self.waypoints[idx].pose.pose.position)
-            if closer_dist is None or dist < closer_dist:
-                closer_dist = dist
-                closer_idx = idx
+        # closer_dist = None
+        # closer_idx = None
+        # dl = lambda a, b: math.sqrt((a[0] - b.x) ** 2 + (a[1] - b.y) ** 2)
+        # for idx in range(0, len(self.waypoints)):
+        #     dist = dl(light_position, self.waypoints[idx].pose.pose.position)
+        #     if closer_dist is None or dist < closer_dist:
+        #         closer_dist = dist
+        #         closer_idx = idx
+
+        dist_squared = np.sum((self.wp_array - light_position)**2, axis=1)
+        closer_idx = np.argmin(dist_squared)
+
         return closer_idx
 
     def get_light_state(self, light):
@@ -173,14 +184,18 @@ class TLDetector(object):
 
         if self.car_pose is not None and self.waypoints is not None:
             # Get stop light position index that is closer to the car pose:
-            closest_stoplight_idx = -1
-            min_dist = -1
-            dl = lambda a, b: math.sqrt((a[0] - b.x) ** 2 + (a[1] - b.y) ** 2)
-            for idx, stop in enumerate(stop_line_positions):
-                dist = dl(stop, self.car_pose.position)
-                if dist < min_dist or min_dist == -1:
-                    min_dist = dist
-                    closest_stoplight_idx = idx
+            # closest_stoplight_idx = -1
+            # min_dist = -1
+            # dl = lambda a, b: math.sqrt((a[0] - b.x) ** 2 + (a[1] - b.y) ** 2)
+            # for idx, stop in enumerate(stop_line_positions):
+            #     dist = dl(stop, self.car_pose.position)
+            #     if dist < min_dist or min_dist == -1:
+            #         min_dist = dist
+            #         closest_stoplight_idx = idx
+
+            car_position = np.asarray([self.car_pose.position.x, self.car_pose.position.y])
+            min_dist = np.sum(np.sqrt((stop_line_positions - car_position)**2), axis=1)
+            closest_stoplight_idx = np.argmin(min_dist)
 
             # Get the associated waypoint for the closest stop light:
             closest_light = stop_line_positions[closest_stoplight_idx]
@@ -192,15 +207,16 @@ class TLDetector(object):
             if car_x < light_wp_x and (light_wp_x - car_x) < self.min_distance:
                 light = self.lights[closest_stoplight_idx]
 
+                # get the state using the classifier:
                 state = self.get_light_state(light)
-                
+
                 # comment when testing in real car
                 real_state = light.state
-                rospy.loginfo("Predicted light state at (%s) meters ahead is (%s), real state is (%s)", min_dist, state, real_state)
-                
+                if real_state != state:
+                    rospy.loginfo("Predicted light state at (%s) meters ahead is (%s), real state is (%s), predicted state is (%s)", min_dist, state, real_state, state)
+
                 return light_wp, state
 
-        # self.waypoints = None
         return -1, TrafficLight.UNKNOWN
 
 if __name__ == '__main__':

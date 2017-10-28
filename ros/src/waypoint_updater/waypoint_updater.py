@@ -85,20 +85,20 @@ class WaypointUpdater(object):
 
                     # slow down immediately if too close to a red light
                     if abs(self.closest_waypoint - red_light_wp) < 10:
-                        if idx is 0:
-                            print("Immediate slowdown", "Current waypoint:", self.closest_waypoint, "Waypoints until Red light:", abs(red_light_wp - self.closest_waypoint))
+                        # if idx is 0:
+                        #     print("Immediate slowdown", "Current waypoint:", self.closest_waypoint, "Waypoints until Red light:", abs(red_light_wp - self.closest_waypoint))
                         self.vel = 0.
-                    else:
-                        if idx is 0:
-                            print("Regular slowdown", "Current waypoint:", self.closest_waypoint, "Waypoints until Red light:", abs(red_light_wp - self.closest_waypoint))
-                else:
-                    if idx is 0:
-                        print("Redlight detected", "Current waypoint:", self.closest_waypoint, "Waypoints until Red light:", abs(red_light_wp - self.closest_waypoint))
+                #     else:
+                #         if idx is 0:
+                #             print("Regular slowdown", "Current waypoint:", self.closest_waypoint, "Waypoints until Red light:", abs(red_light_wp - self.closest_waypoint))
+                # else:
+                #     if idx is 0:
+                #         print("Redlight detected", "Current waypoint:", self.closest_waypoint, "Waypoints until Red light:", abs(red_light_wp - self.closest_waypoint))
             else:
                 # accelerate
                 self.vel = self.max_speed
-                if idx is 0:
-                    print("Current waypoint:", self.closest_waypoint)
+                # if idx is 0:
+                #     print("Current waypoint:", self.closest_waypoint)
 
             planned_lane.waypoints[idx].twist.twist.linear.x = self.vel
 
@@ -155,7 +155,6 @@ class WaypointUpdater(object):
                 final_waypoints = self.get_final_waypoints(self.car_pose, self.waypoints, self.redlight_wp)
 
                 # publish final waypoints:
-                #final_waypoints_msg = list(self.final_waypoints.waypoints)
                 self.final_waypoints_pub.publish(final_waypoints)
             rate.sleep()
 

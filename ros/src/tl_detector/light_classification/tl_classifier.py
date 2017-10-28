@@ -13,13 +13,13 @@ PRINT_IMAGES = False
 
 def load_detection_graph(frozen_graph_filename):
     # https://blog.metaflow.fr/tensorflow-how-to-freeze-a-model-and-serve-it-with-a-python-api-d4f3596b3adc
-    # We load the protobuf file from the disk and parse it to retrieve the 
+    # We load the protobuf file from the disk and parse it to retrieve the
     # unserialized graph_def
     with tf.gfile.GFile(frozen_graph_filename, "rb") as f:
         graph_def = tf.GraphDef()
         graph_def.ParseFromString(f.read())
 
-    # Then, we import the graph_def into a new Graph and returns it 
+    # Then, we import the graph_def into a new Graph and returns it
     with tf.Graph().as_default() as graph:
         # The name var will prefix every op/nodes in your graph
         # Since we load everything in a new graph, this is not needed
@@ -28,13 +28,13 @@ def load_detection_graph(frozen_graph_filename):
 
 def load_classification_graph(frozen_graph_filename):
     # https://blog.metaflow.fr/tensorflow-how-to-freeze-a-model-and-serve-it-with-a-python-api-d4f3596b3adc
-    # We load the protobuf file from the disk and parse it to retrieve the 
+    # We load the protobuf file from the disk and parse it to retrieve the
     # unserialized graph_def
     with tf.gfile.GFile(frozen_graph_filename, "rb") as f:
         graph_def = tf.GraphDef()
         graph_def.ParseFromString(f.read())
 
-    # Then, we import the graph_def into a new Graph and returns it 
+    # Then, we import the graph_def into a new Graph and returns it
     with tf.Graph().as_default() as graph:
         # The name var will prefix every op/nodes in your graph
         # Since we load everything in a new graph, this is not needed
@@ -43,21 +43,21 @@ def load_classification_graph(frozen_graph_filename):
 
 class TLClassifier(object):
     def __init__(self):
-        #TODO load classifier
+        # load classifier
 
         rp = rospkg.RosPack()
-        
+
         # Get detection models path
         # Detection models downloaded in https://github.com/tensorflow/models/blob/master/research/object_detection/g3doc/detection_model_zoo.md
          # detection_model_path = "models/detection_models/ssd_mobilenet/frozen_inference_graph.pb"
-        detection_model_path = os.path.join(rp.get_path('tl_detector'), 'light_classification', 'models', 'detection_models', 'ssd_mobilenet', 'frozen_inference_graph.pb')    
+        detection_model_path = os.path.join(rp.get_path('tl_detector'), 'light_classification', 'models', 'detection_models', 'ssd_mobilenet', 'frozen_inference_graph.pb')
         rospy.loginfo('Detection model in path {}'.format(detection_model_path))
-        self.output_images_path = os.path.join(rp.get_path('tl_detector'), 'light_classification', 'output_images')   
+        self.output_images_path = os.path.join(rp.get_path('tl_detector'), 'light_classification', 'output_images')
         self.iteration = 0
         self.light2str = {0: 'red', 1: 'yellow', 2: 'green', 3: 'none', 4: 'unknown'}
 
         ### Detection model ####
-        # Load graph 
+        # Load graph
         self.detection_graph = load_detection_graph(detection_model_path)
 
         # Start tensor flow session
@@ -76,9 +76,9 @@ class TLClassifier(object):
         self.detection_classes = self.detection_graph.get_tensor_by_name('detection/detection_classes:0')
 
         ### Classification model ###
-        # Source: https://github.com/tokyo-drift/traffic_light_classifier    
+        # Source: https://github.com/tokyo-drift/traffic_light_classifier
         if USE_DNN_CLASSIFIER == True:
-            classification_model_path = os.path.join(rp.get_path('tl_detector'), 'light_classification', 'models', 'classification_models', 'tokyo_drift', 'model_classification.pb')    
+            classification_model_path = os.path.join(rp.get_path('tl_detector'), 'light_classification', 'models', 'classification_models', 'tokyo_drift', 'model_classification.pb')
             rospy.loginfo('Classification model in path {}'.format(classification_model_path))
             self.classification_graph = load_classification_graph(classification_model_path)
             self.classification_session = tf.Session(graph=self.classification_graph)
@@ -91,7 +91,7 @@ class TLClassifier(object):
     def get_traffic_light_b_box(self, image):
         """Determines the traffic light bounding box within an image"""
 
-        pred_boxes, pred_scores, pred_classes = self.detection_session.run([self.detection_boxes, self.detection_scores, self.detection_classes], 
+        pred_boxes, pred_scores, pred_classes = self.detection_session.run([self.detection_boxes, self.detection_scores, self.detection_classes],
             feed_dict={self.detection_image: np.expand_dims(image, axis=0)})
 
         pred_boxes = pred_boxes.squeeze()
@@ -158,6 +158,7 @@ class TLClassifier(object):
             return self.dnn_classifier(tl_b_box_image)
         else:
             return self.cv_classifier_3(tl_b_box_image)
+            # return self.cv_classifier_1(image)
 
     def dnn_classifier(self, image):
         """
@@ -194,15 +195,15 @@ class TLClassifier(object):
         decision = TrafficLight.UNKNOWN
         outim = image.copy();
         testim = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-        
+
         lowBound1 = np.array([0,51,50])
         highBound1 = np.array([10,255,255])
         testim1 = cv2.inRange(testim, lowBound1 , highBound1)
-        
+
         lowBound2 = np.array([170,51,50])
         highBound2 = np.array([180,255,255])
         testim2 = cv2.inRange(testim, lowBound2 , highBound2)
-        
+
         # testimcombined = cv2.addWeighted(testim1, 1.0, testim2, 1.0, 0.0)
         testimcombined = testim1
         testimblur = cv2.GaussianBlur(testimcombined,(15,15),0)
@@ -210,7 +211,7 @@ class TLClassifier(object):
 
         if c is not None:
             decision = TrafficLight.RED
-        
+
         return decision
 
     def cv_classifier_2(self, image):
@@ -224,7 +225,7 @@ class TLClassifier(object):
 
         decision = TrafficLight.UNKNOWN
 
-        brightness = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)[:,:,-1] 
+        brightness = cv2.cvtColor(image, cv2.COLOR_RGB2HSV)[:,:,-1]
         hs, ws = np.where(brightness >= (brightness.max()-30))
         hs_mean = hs.mean()
         img_h = image.shape[0]
@@ -234,40 +235,40 @@ class TLClassifier(object):
             decision = TrafficLight.GREEN
         else:
             decision = TrafficLight.YELLOW
-        
+
         return decision
 
     def cv_classifier_3(self, image):
         """
-        Used in simulator by: https://github.com/priya-dwivedi/CarND-Capstone-Carla
-
         Args:
             Image: cv2.image in BGR
 
         """
 
-        decision = TrafficLight.UNKNOWN
-
         red_img = image[:,:,2]
         green_img = image[:,:,1]
-        area_thr = 80
 
+        if PRINT_IMAGES == True:
+            cv2.imwrite(self.output_images_path+"/"+'red_img.jpg', red_img)
+            cv2.imwrite(self.output_images_path+"/"+'green_img.jpg', green_img)
+
+        # counts pixels which are max in each picture color:
         red_area = np.sum(red_img == red_img.max())
         green_area = np.sum(green_img == green_img.max())
 
-        if red_area >= area_thr and green_area <= area_thr:
-          decision = TrafficLight.RED
-        elif red_area >= area_thr and green_area >= area_thr:
-          decision = TrafficLight.YELLOW if 0.8 <= red_area / green_area <= 1.2 else TrafficLight.RED
-        elif green_area >= area_thr:
-          decision = TrafficLight.GREEN
+        if red_area - green_area >= 15:
+            decision = TrafficLight.RED
+            rospy.loginfo("RED {0} {1}".format(red_area, green_area))
+        elif green_area - red_area >= 15:
+            decision = TrafficLight.GREEN
+            rospy.loginfo("GREEN {0} {1}".format(red_area, green_area))
         else:
-          decision = TrafficLight.UNKNOWN
+            decision = TrafficLight.UNKNOWN
+            print("UNKNOWN",red_area, green_area)
 
-        if PRINT_IMAGES == True:
-            im_name_3 = str(self.light2str[decision])+"_"+str(self.iteration)+".jpg"
-            cv2.imwrite(self.output_images_path+"/"+im_name_3, image)
-            self.iteration = self.iteration+1
+        # if PRINT_IMAGES == True:
+        #     im_name_3 = str(self.light2str[decision])+"_"+str(self.iteration)+".jpg"
+        #     cv2.imwrite(self.output_images_path+"/"+im_name_3, image)
+        #     self.iteration = self.iteration+1
 
         return decision
-
